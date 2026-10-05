@@ -17,6 +17,12 @@ from .adapter import (
     GistModelAdapter,
     GistCache,
 )
+from .swarm import (
+    SwarmAgent,
+    SwarmMemoryPool,
+    GistSwarm,
+    SwarmTelemetry,
+)
 
 __version__ = "0.1.0"
 
@@ -31,4 +37,9 @@ __all__ = [
     "GistWrapperLayer",
     "GistModelAdapter",
     "GistCache",
+    "SwarmAgent",
+    "SwarmMemoryPool",
+    "GistSwarm",
+    "SwarmTelemetry",
 ]
+

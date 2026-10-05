@@ -88,6 +88,9 @@ class GistWrapperLayer(nn.Module):
         if hasattr(self.gist.recon_proj, "bias") and self.gist.recon_proj.bias is not None:
             nn.init.zeros_(self.gist.recon_proj.bias)
 
+        self.current_state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None
+        self.pinned_state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None
+
         if device is not None or dtype is not None:
             self.gist.to(device=device, dtype=dtype)
 
@@ -105,7 +108,7 @@ class GistWrapperLayer(nn.Module):
         else:
             orig_hidden = layer_outputs
 
-        # 2. Extract or resolve Gist state from cache
+        # 2. Extract or resolve Gist state from cache or pinned state
         prior_state = None
         if past_key_values is not None:
             if hasattr(past_key_values, "get_gist_state"):
@@ -119,9 +122,12 @@ class GistWrapperLayer(nn.Module):
                     prior_state = None
                 except Exception:
                     pass
+        if prior_state is None and self.pinned_state is not None:
+            prior_state = self.pinned_state
 
         # 3. Memory forward pass
         gist_out, new_state = self.gist(orig_hidden, state=prior_state, return_state=True)
+        self.current_state = new_state
 
         # 4. Save updated state back into cache
         if past_key_values is not None and new_state is not None:
@@ -134,6 +140,7 @@ class GistWrapperLayer(nn.Module):
             return (gist_out,) + layer_outputs[1:]
         else:
             return gist_out
+
 
 
 class GistModelAdapter:
@@ -272,3 +279,21 @@ class GistModelAdapter:
         if was_training:
             self.model.train()
         return max_norm
+
+    def get_states(self) -> Dict[int, Any]:
+        """Returns the current GistState dictionary for all wrapped layers."""
+        return {idx: w.current_state for idx, w in self.wrapped_layers.items() if w.current_state is not None}
+
+    def set_states(self, states: Dict[int, Any]) -> None:
+        """Injects / pins GistStates across wrapped layers for zero-prompt memory retrieval."""
+        for idx, state in states.items():
+            if idx in self.wrapped_layers:
+                self.wrapped_layers[idx].pinned_state = state
+                self.wrapped_layers[idx].current_state = state
+
+    def clear_states(self) -> None:
+        """Clears all pinned and current GistStates across all wrapped layers."""
+        for w in self.wrapped_layers.values():
+            w.pinned_state = None
+            w.current_state = None
+
