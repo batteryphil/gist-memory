@@ -130,6 +130,7 @@ class GistLayer(nn.Module):
         x: torch.Tensor,
         state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None,
         return_state: bool = False,
+        attention_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]]]:
         """
         Forward pass through Gist memory.
@@ -138,6 +139,7 @@ class GistLayer(nn.Module):
             x: Input hidden states [B, L, D]
             state: Prior GistState or (M, Z) tuple from previous sequence/steps.
             return_state: Whether to compute and return the updated state.
+            attention_mask: Optional binary or boolean mask [B, L] or [B, 1, 1, L].
             
         Returns:
             out: Reconstructed and gated hidden states [B, L, D]
@@ -146,6 +148,20 @@ class GistLayer(nn.Module):
         B, L, D = x.shape
         in_dtype = x.dtype
         device = x.device
+
+        # Process attention mask if provided
+        mask = None
+        if attention_mask is not None:
+            if attention_mask.ndim == 2:
+                mask = attention_mask.unsqueeze(-1).to(in_dtype)
+            elif attention_mask.ndim == 3:
+                mask = attention_mask.transpose(1, 2).to(in_dtype) if attention_mask.shape[1] == 1 else attention_mask.to(in_dtype)
+            elif attention_mask.ndim == 4:
+                mask = attention_mask[:, 0, 0, :].unsqueeze(-1).to(in_dtype) if (attention_mask.shape[1] == 1 and attention_mask.shape[2] == 1) else attention_mask[:, :, -1, :].unsqueeze(-1).to(in_dtype)
+            if mask is not None and mask.shape[1] != L:
+                mask = mask[:, -L:, :]
+            if mask is not None and (mask < 0).any():
+                mask = (mask >= -1.0).to(in_dtype)
 
         # Unpack state
         passed_as_obj = isinstance(state, GistState)
@@ -179,6 +195,10 @@ class GistLayer(nn.Module):
             gamma = torch.sigmoid(self.salience_gate(x)) # [B, L, 1]
             m_k = m_k * gamma
 
+        if mask is not None:
+            m_k = m_k * mask
+            v = v * mask
+
         decay_val = self._get_decay(x)
 
         # ─────────────────────────────────────────────────────────────────────
@@ -200,11 +220,33 @@ class GistLayer(nn.Module):
                 q_t_acc = q_t
                 d_val = decay_val.to(v.dtype) if isinstance(decay_val, torch.Tensor) else decay_val
 
+            # Ensure d_val broadcasts properly without triggering 3D batch broadcasting
+            if isinstance(d_val, torch.Tensor):
+                while d_val.ndim > 2:
+                    d_val = d_val.squeeze(1)
+                if d_val.ndim == 1 and d_val.shape[0] != B:
+                    d_val = d_val.unsqueeze(0)
+                elif d_val.ndim == 1 and d_val.shape[0] == B:
+                    d_val = d_val.unsqueeze(1)
+                elif d_val.ndim == 0:
+                    d_val = d_val.item()
+
+            if isinstance(d_val, torch.Tensor):
+                decay_Z = d_val * prior_Z
+                decay_M = d_val.unsqueeze(-1) * prior_M
+            else:
+                decay_Z = d_val * prior_Z
+                decay_M = d_val * prior_M
+
             # State recurrence
-            new_Z = d_val * prior_Z + m_t_acc # [B, d_map]
-            # Outer product accumulation: m_t (x) v_t
             outer_prod = torch.bmm(m_t_acc.unsqueeze(2), v_t_acc.unsqueeze(1)) # [B, d_map, D]
-            new_M = d_val * prior_M + outer_prod # [B, d_map, D]
+            if mask is not None:
+                mask_t = mask.squeeze(1).float() if self.fp32_accumulator else mask.squeeze(1)
+                new_Z = torch.where(mask_t > 0, decay_Z + m_t_acc, prior_Z)
+                new_M = torch.where(mask_t.unsqueeze(-1) > 0, decay_M + outer_prod, prior_M)
+            else:
+                new_Z = decay_Z + m_t_acc
+                new_M = decay_M + outer_prod
 
             # Readout: recall = q_t^T M / (q_t^T Z + eps)
             num = torch.bmm(q_t_acc.unsqueeze(1), new_M) # [B, 1, D]
@@ -237,35 +279,59 @@ class GistLayer(nn.Module):
             # S[b, i, j] = q_i^T m_j
             S = torch.bmm(q_k, m_k.transpose(1, 2)) # [B, L, L]
 
-            # Causal decay matrix: Lambda[i, j] = decay^(i - j) for i >= j else 0
             idx = torch.arange(L, device=device)
-            dist = idx.unsqueeze(1) - idx.unsqueeze(0)
-            causal_mask = dist >= 0
+            causal_mask = idx.unsqueeze(1) >= idx.unsqueeze(0) # [L, L]
 
-            if isinstance(decay_val, torch.Tensor) and decay_val.numel() == 1:
-                decay_scalar = decay_val.item()
-            elif isinstance(decay_val, (int, float)):
-                decay_scalar = float(decay_val)
+            is_seq_decay = isinstance(decay_val, torch.Tensor) and decay_val.ndim >= 2 and decay_val.shape[1] == L
+
+            if is_seq_decay:
+                decay_seq = decay_val.float()
+                if decay_seq.ndim == 3 and decay_seq.shape[-1] == 1:
+                    decay_seq = decay_seq.squeeze(-1) # [B, L]
+                log_decay = torch.log(decay_seq.clamp(min=1e-8, max=1.0)) # [B, L]
+                cum_log = torch.cumsum(log_decay, dim=1) # [B, L]
+                dist_cum = (cum_log.unsqueeze(2) - cum_log.unsqueeze(1)).clamp(max=0.0) # [B, L, L]
+                decay_mat = torch.where(
+                    causal_mask,
+                    torch.exp(dist_cum).to(in_dtype),
+                    torch.zeros_like(dist_cum, dtype=in_dtype)
+                ) # [B, L, L]
+                t_decay = torch.exp(cum_log).view(B, L, 1, 1).to(in_dtype)
+                t_decay_Z = torch.exp(cum_log).view(B, L, 1).to(in_dtype)
+                end_cum = cum_log[:, -1:].unsqueeze(1)
+                boundary_weights = torch.exp(end_cum - cum_log.unsqueeze(1)).to(in_dtype).transpose(1, 2) # [B, L, 1]
+                decay_L = torch.exp(cum_log[:, -1:]).view(B, 1, 1).float()
             else:
-                decay_scalar = float(decay_val.mean().item())
+                if isinstance(decay_val, torch.Tensor) and decay_val.numel() == 1:
+                    decay_scalar = decay_val.item()
+                elif isinstance(decay_val, (int, float)):
+                    decay_scalar = float(decay_val)
+                else:
+                    decay_scalar = float(decay_val.mean().item())
 
-            decay_mat = torch.where(
-                causal_mask,
-                (decay_scalar ** dist.float()).to(in_dtype),
-                torch.zeros_like(dist, dtype=in_dtype)
-            ).unsqueeze(0) # [1, L, L]
+                dist = idx.unsqueeze(1) - idx.unsqueeze(0)
+                decay_mat = torch.where(
+                    causal_mask,
+                    (decay_scalar ** dist.float()).to(in_dtype),
+                    torch.zeros_like(dist, dtype=in_dtype)
+                ).unsqueeze(0) # [1, L, L]
+                t_decay = (decay_scalar ** (idx.float() + 1.0)).view(1, L, 1, 1).to(in_dtype)
+                t_decay_Z = (decay_scalar ** (idx.float() + 1.0)).view(1, L, 1).to(in_dtype)
+                boundary_weights = (decay_scalar ** (L - 1 - idx).float()).view(1, L, 1).to(in_dtype)
+                decay_L = (decay_scalar ** L)
 
             attn_weights = S * decay_mat # [B, L, L]
+            if mask is not None:
+                attn_weights = attn_weights * mask.transpose(1, 2)
+
             recall_all = torch.bmm(attn_weights, v) # [B, L, D]
             norm_factor = torch.sum(attn_weights, dim=-1, keepdim=True) # [B, L, 1]
 
             # Incorporate prior state if provided (chunked / recurrent prefix)
             if prior_M is not None and prior_Z is not None:
-                t_decay = (decay_scalar ** (idx.float() + 1.0)).view(1, L, 1, 1).to(in_dtype)
                 prior_recall = torch.matmul(q_k.unsqueeze(2), prior_M.unsqueeze(1).to(in_dtype)) * t_decay
                 recall_all = recall_all + prior_recall.squeeze(2)
 
-                t_decay_Z = (decay_scalar ** (idx.float() + 1.0)).view(1, L, 1).to(in_dtype)
                 prior_norm = torch.bmm(q_k, prior_Z.unsqueeze(-1).to(in_dtype)) * t_decay_Z
                 norm_factor = norm_factor + prior_norm
 
@@ -279,8 +345,7 @@ class GistLayer(nn.Module):
             new_state = None
             if return_state:
                 # Cumulative state at sequence boundary
-                weights = (decay_scalar ** (L - 1 - idx).float()).view(1, L, 1).to(in_dtype)
-                m_decayed = m_k * weights # [B, L, d_map]
+                m_decayed = m_k * boundary_weights # [B, L, d_map]
 
                 v_acc = v.float() if self.fp32_accumulator else v
                 m_acc = m_decayed.float() if self.fp32_accumulator else m_decayed
@@ -289,9 +354,9 @@ class GistLayer(nn.Module):
                 Z_new = torch.sum(m_acc, dim=1) # [B, d_map]
 
                 if prior_M is not None and prior_Z is not None:
-                    decay_L = (decay_scalar ** L)
                     M_new = M_new + decay_L * prior_M
-                    Z_new = Z_new + decay_L * prior_Z
+                    decay_L_Z = decay_L.squeeze(-1) if isinstance(decay_L, torch.Tensor) else decay_L
+                    Z_new = Z_new + decay_L_Z * prior_Z
 
                 if passed_as_obj or (state is None and not isinstance(state, tuple)):
                     new_state = GistState(

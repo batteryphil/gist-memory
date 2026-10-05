@@ -111,12 +111,14 @@ class MultiHeadGistLayer(nn.Module):
         x: torch.Tensor,
         state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None,
         return_state: bool = False,
+        attention_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]]]:
         """
         Args:
             x: Input hidden states [B, L, D]
             state: Prior GistState or (M, Z) tuple [B, H, d_map, d_v], [B, H, d_map]
             return_state: Whether to return updated multi-head state
+            attention_mask: Optional binary or boolean mask [B, L] or [B, 1, 1, L]
         """
         B, L, D = x.shape
         H = self.num_heads
@@ -124,6 +126,20 @@ class MultiHeadGistLayer(nn.Module):
         d_v = self.d_v
         in_dtype = x.dtype
         device = x.device
+
+        # Process attention mask if provided
+        mask = None
+        if attention_mask is not None:
+            if attention_mask.ndim == 2:
+                mask = attention_mask.view(B, L, 1, 1).to(in_dtype)
+            elif attention_mask.ndim == 3:
+                mask = attention_mask.unsqueeze(-1).to(in_dtype)
+            elif attention_mask.ndim == 4:
+                mask = attention_mask[:, 0, 0, :].view(B, L, 1, 1).to(in_dtype) if (attention_mask.shape[1] == 1 and attention_mask.shape[2] == 1) else attention_mask[:, :, -1, :].view(B, L, 1, 1).to(in_dtype)
+            if mask is not None and mask.shape[1] != L:
+                mask = mask[:, -L:, :, :]
+            if mask is not None and (mask < 0).any():
+                mask = (mask >= -1.0).to(in_dtype)
 
         # Unpack state
         passed_as_obj = isinstance(state, GistState)
@@ -154,6 +170,10 @@ class MultiHeadGistLayer(nn.Module):
             gamma = torch.sigmoid(self.salience_gate(x)).unsqueeze(-1)
             m_k = m_k * gamma
 
+        if mask is not None:
+            m_k = m_k * mask
+            v = v * mask
+
         # Decays per head: [H] -> [1, 1, H, 1]
         decays = self.decay() # [H]
 
@@ -177,11 +197,15 @@ class MultiHeadGistLayer(nn.Module):
                 d_heads_mat = decays.view(1, H, 1, 1).to(in_dtype)
 
             # Normalizer update: [B, H, d_m]
-            new_Z = d_heads * prior_Z + m_t
-
             # Outer product update: [B, H, d_m, 1] @ [B, H, 1, d_v] = [B, H, d_m, d_v]
             outer_prod = torch.matmul(m_t.unsqueeze(-1), v_t.unsqueeze(-2))
-            new_M = d_heads_mat * prior_M + outer_prod
+            if mask is not None:
+                mask_t = mask.squeeze(1).float() if self.fp32_accumulator else mask.squeeze(1) # [B, 1, 1]
+                new_Z = torch.where(mask_t.squeeze(-1) > 0, d_heads * prior_Z + m_t, prior_Z)
+                new_M = torch.where(mask_t > 0, d_heads_mat * prior_M + outer_prod, prior_M)
+            else:
+                new_Z = d_heads * prior_Z + m_t
+                new_M = d_heads_mat * prior_M + outer_prod
 
             # Readout: [B, H, 1, d_m] @ [B, H, d_m, d_v] = [B, H, 1, d_v]
             num = torch.matmul(q_t.unsqueeze(-2), new_M)
@@ -231,6 +255,8 @@ class MultiHeadGistLayer(nn.Module):
             decay_mat = torch.where(causal_mask, d_pow, torch.zeros_like(d_pow))
 
             attn_weights = S * decay_mat # [B, H, L, L]
+            if mask is not None:
+                attn_weights = attn_weights * mask.view(B, 1, 1, L)
             recall_heads = torch.matmul(attn_weights, v_h) # [B, H, L, d_v]
             norm_factor = torch.sum(attn_weights, dim=-1, keepdim=True) # [B, H, L, 1]
 

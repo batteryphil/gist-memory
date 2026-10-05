@@ -52,6 +52,7 @@ class ChunkedGistLayer(GistLayer):
         x: torch.Tensor,
         state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None,
         return_state: bool = False,
+        attention_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]]]:
         """
         Forward pass using Chunked SSD block-parallel scan.
@@ -61,10 +62,24 @@ class ChunkedGistLayer(GistLayer):
 
         # Fallback to base GistLayer for single-token streaming or short sequences <= chunk_size
         if L <= C:
-            return super().forward(x, state=state, return_state=return_state)
+            return super().forward(x, state=state, return_state=return_state, attention_mask=attention_mask)
 
         in_dtype = x.dtype
         device = x.device
+
+        # Process attention mask if provided
+        mask = None
+        if attention_mask is not None:
+            if attention_mask.ndim == 2:
+                mask = attention_mask.unsqueeze(-1).to(in_dtype)
+            elif attention_mask.ndim == 3:
+                mask = attention_mask.transpose(1, 2).to(in_dtype) if attention_mask.shape[1] == 1 else attention_mask.to(in_dtype)
+            elif attention_mask.ndim == 4:
+                mask = attention_mask[:, 0, 0, :].unsqueeze(-1).to(in_dtype) if (attention_mask.shape[1] == 1 and attention_mask.shape[2] == 1) else attention_mask[:, :, -1, :].unsqueeze(-1).to(in_dtype)
+            if mask is not None and mask.shape[1] != L:
+                mask = mask[:, -L:, :]
+            if mask is not None and (mask < 0).any():
+                mask = (mask >= -1.0).to(in_dtype)
 
         # Unpack state
         passed_as_obj = isinstance(state, GistState)
@@ -95,6 +110,10 @@ class ChunkedGistLayer(GistLayer):
             gamma = torch.sigmoid(self.salience_gate(x))
             m_k = m_k * gamma
 
+        if mask is not None:
+            m_k = m_k * mask
+            v = v * mask
+
         decay_val = self._get_decay(x)
         if isinstance(decay_val, torch.Tensor) and decay_val.numel() == 1:
             decay_scalar = decay_val.item()
@@ -109,6 +128,12 @@ class ChunkedGistLayer(GistLayer):
             m_k = F.pad(m_k, (0, 0, 0, pad_len))
             q_k = F.pad(q_k, (0, 0, 0, pad_len))
             v = F.pad(v, (0, 0, 0, pad_len))
+            if mask is not None:
+                mask_pad = F.pad(mask, (0, 0, 0, pad_len))
+            else:
+                mask_pad = None
+        else:
+            mask_pad = mask
 
         num_chunks = (L + pad_len) // C
 
@@ -116,6 +141,10 @@ class ChunkedGistLayer(GistLayer):
         m_chunks = m_k.view(B, num_chunks, C, self.d_map)
         q_chunks = q_k.view(B, num_chunks, C, self.d_map)
         v_chunks = v.view(B, num_chunks, C, D)
+        if mask_pad is not None:
+            mask_chunks = mask_pad.view(B, num_chunks, C, 1)
+        else:
+            mask_chunks = None
 
         # Precompute intra-chunk causal decay: [C, C]
         c_idx = torch.arange(C, device=device)
@@ -137,6 +166,8 @@ class ChunkedGistLayer(GistLayer):
         # S_local: [B, num_chunks, C, C]
         S_local = torch.matmul(q_chunks, m_chunks.transpose(-2, -1))
         attn_local = S_local * intra_decay # [B, num_chunks, C, C]
+        if mask_chunks is not None:
+            attn_local = attn_local * mask_chunks.transpose(-1, -2)
 
         # Local recall: [B, num_chunks, C, D]
         recall_local = torch.matmul(attn_local, v_chunks)

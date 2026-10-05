@@ -200,12 +200,22 @@ class GistState:
         if self.M.shape != other_M.shape or self.Z.shape != other_Z.shape:
             raise ValueError(f"Shape mismatch in GistState addition: {self.M.shape} vs {other_M.shape}")
 
+        sources = []
+        for s in (self, other):
+            if "sources" in s.metadata:
+                sources.extend(s.metadata["sources"])
+            elif "agent_id" in s.metadata:
+                sources.append(s.metadata["agent_id"])
+            else:
+                sources.append("anon")
+        unique_sources = list(dict.fromkeys(sources))
+
         return GistState(
             M=self.M + other_M,
             Z=self.Z + other_Z,
             step_count=self.step_count + other.step_count,
             layer_idx=self.layer_idx if self.layer_idx == other.layer_idx else None,
-            metadata={"fused": True, "sources": [self.metadata.get("agent_id", "anon"), other.metadata.get("agent_id", "anon")]},
+            metadata={"fused": True, "sources": unique_sources},
         )
 
     def __radd__(self, other: Union[GistState, int, float]) -> GistState:

@@ -32,6 +32,12 @@ from tests.test_hf_adapter import (
     test_zero_init_preservation,
     test_gist_cache_propagation,
 )
+from tests.test_fixes import (
+    test_data_dependent_decay_exact_equivalence,
+    test_attention_mask_left_padding_invariance,
+    test_gist_cache_reorder_beams,
+    test_state_multi_source_metadata_fusion,
+)
 
 TEST_CASES = [
     ("Numerical Equivalence: Parallel vs Streaming (Square Kernel)", lambda: test_parallel_vs_streaming_equivalence(kernel="square")),
@@ -43,11 +49,16 @@ TEST_CASES = [
     ("MultiHead: Streaming Step Equivalence", test_multihead_streaming_equivalence),
     ("Decay: MultiScale Progression & Positivity", test_multiscale_decay_initialization),
     ("Decay: Data-Dependent Contextual Decay", test_data_dependent_decay),
+    ("Decay: Data-Dependent Exact Parallel vs Streaming Equivalence", test_data_dependent_decay_exact_equivalence),
+    ("Mask: Attention Mask & Left-Padding Invariance", test_attention_mask_left_padding_invariance),
     ("State: Diagnostics, Energy & SVD Capacity", test_gist_state_diagnostics),
     ("State: Disk Save & Load Roundtrip", test_gist_state_serialization),
+    ("State: Chained Multi-Source Metadata Retention", test_state_multi_source_metadata_fusion),
     ("Adapter: Strict Zero-Init Baseline Preservation", test_zero_init_preservation),
     ("Adapter: GistCache Step-by-Step Propagation", test_gist_cache_propagation),
+    ("Adapter: GistCache Beam Search Reordering", test_gist_cache_reorder_beams),
 ]
+
 
 def main():
     print("=" * 70)

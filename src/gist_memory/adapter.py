@@ -39,6 +39,20 @@ class GistCache:
     def set_gist_state(self, layer_idx: int, state: Union[GistState, Tuple[torch.Tensor, torch.Tensor]]) -> None:
         self.gist_states[layer_idx] = state
 
+    def reorder_cache(self, beam_idx: torch.Tensor) -> None:
+        """Reorders cached Gist states across beams for beam search."""
+        if self.base_cache is not None and hasattr(self.base_cache, "reorder_cache"):
+            self.base_cache.reorder_cache(beam_idx)
+        for layer_idx, state in list(self.gist_states.items()):
+            if isinstance(state, GistState):
+                b_idx = beam_idx.to(state.M.device)
+                state.M = state.M.index_select(0, b_idx)
+                state.Z = state.Z.index_select(0, b_idx)
+            elif isinstance(state, tuple):
+                m, z = state
+                b_idx = beam_idx.to(m.device)
+                self.gist_states[layer_idx] = (m.index_select(0, b_idx), z.index_select(0, b_idx))
+
     def __getattr__(self, name: str):
         # Forward any unhandled attributes to base Hugging Face Cache (e.g. DynamicCache)
         if self.base_cache is not None:
@@ -125,8 +139,13 @@ class GistWrapperLayer(nn.Module):
         if prior_state is None and self.pinned_state is not None:
             prior_state = self.pinned_state
 
+        # Extract attention_mask if present
+        attention_mask = kwargs.get("attention_mask", None)
+        if attention_mask is None and len(args) > 1 and isinstance(args[1], torch.Tensor):
+            attention_mask = args[1]
+
         # 3. Memory forward pass
-        gist_out, new_state = self.gist(orig_hidden, state=prior_state, return_state=True)
+        gist_out, new_state = self.gist(orig_hidden, state=prior_state, return_state=True, attention_mask=attention_mask)
         self.current_state = new_state
 
         # 4. Save updated state back into cache

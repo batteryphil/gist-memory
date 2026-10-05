@@ -43,20 +43,32 @@ def generate_passkey_sample(seq_len: int, d_model: int, rng: random.Random):
     return x, passkey_query, insert_idx
 
 
+def extract_associative_recall(layer: GistLayer, query: torch.Tensor, state: GistState) -> torch.Tensor:
+    """Extracts the true associative recall vector from memory state M."""
+    q_raw = layer.q_proj(query)
+    q = layer.q_norm(q_raw)
+    q_k = layer._apply_kernel(q).squeeze(1)
+    num = torch.bmm(q_k.unsqueeze(1), state.M)
+    den = torch.bmm(q_k.unsqueeze(1), state.Z.unsqueeze(-1)) + layer.eps
+    return (num / den.clamp(min=layer.eps)).squeeze(1)
+
+
 def run_passkey_benchmark(lengths=[1000, 2000, 4000, 8000]):
-    print("=" * 70)
-    print("  GIST MEMORY: PASSKEY RETRIEVAL CAPACITY BENCHMARK")
-    print("=" * 70)
+    print("=" * 80)
+    print("  GIST MEMORY: PASSKEY RETRIEVAL CAPACITY BENCHMARK (ACTIVE VS ABLATED)")
+    print("=" * 80)
 
     d_model = 256
     d_map = 32
     layer = GistLayer(d_model=d_model, d_map=d_map, decay=0.9999)
+    # Enable non-zero projection weights for measurable associative signal
+    torch.nn.init.normal_(layer.recon_proj.weight, std=0.05)
     layer.eval()
 
     rng = random.Random(42)
 
-    print(f"{'Length':>8} | {'Needle Depth':>14} | {'State Size':>12} | {'Retrieval Cosine Sim':>22}")
-    print("-" * 65)
+    print(f"{'Length':>8} | {'Needle Depth':>14} | {'State Size':>12} | {'Active Recall Sim':>18} | {'Ablated Sim':>12} | {'Delta':>8}")
+    print("-" * 80)
 
     for L in lengths:
         x, passkey_q, depth = generate_passkey_sample(L, d_model, rng)
@@ -64,17 +76,26 @@ def run_passkey_benchmark(lengths=[1000, 2000, 4000, 8000]):
             # Ingest context into memory
             _, state = layer(x, return_state=True)
 
-            # Query memory with passkey cue
-            recalled, _ = layer(passkey_q, state=state, return_state=True)
+            # Target value payload
+            target_v = layer.v_proj(passkey_q).squeeze(1)
 
-            # Measure associative alignment
-            sim = F.cosine_similarity(recalled.squeeze(1), passkey_q.squeeze(1)).item()
+            # Associative recall from active memory
+            recalled_active = extract_associative_recall(layer, passkey_q, state)
+            sim_active = F.cosine_similarity(recalled_active, target_v).item()
+
+            # Control readout from ablated (empty) state
+            ablated_state = state.zero_like()
+            recalled_ablated = extract_associative_recall(layer, passkey_q, ablated_state)
+            sim_ablated = F.cosine_similarity(recalled_ablated, target_v).item()
+
+            delta = sim_active - sim_ablated
 
         depth_pct = (depth / L) * 100.0
-        print(f"{L:>8,d} | {depth:>6d} ({depth_pct:4.1f}%) | {state.size_kb:>9.2f} KB | {sim:>22.4f}")
+        print(f"{L:>8,d} | {depth:>6d} ({depth_pct:4.1f}%) | {state.size_kb:>9.2f} KB | {sim_active:>18.4f} | {sim_ablated:>12.4f} | {delta:>+8.4f}")
 
-    print("-" * 65)
+    print("-" * 80)
     print("[+] Benchmark finished.")
+
 
 
 if __name__ == "__main__":
