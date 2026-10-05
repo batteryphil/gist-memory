@@ -8,8 +8,12 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)]()
 [![State Size](https://img.shields.io/badge/Memory%20State-O(1)%20%7E64_KB-purple.svg)]()
 [![Zero-Init](https://img.shields.io/badge/Zero--Init-100%25%20Bitwise%20Safe-success.svg)]()
+[![Empirical Study](https://img.shields.io/badge/Empirical%20Limits-128k%20Tested%20%7C%20O(1)-orange.svg)](docs/PERFORMANCE_STUDY.md)
 
 **A fixed-size, second-order associative memory manifold that replaces unbounded $O(N)$ KV caches with compact, $O(1)$ topological thought blueprints.**
+
+> 📊 **Read the Empirical Limit Study**: [Empirical Limit & Performance Study (128k Tokens, 99.36% API Cost Reduction, Swarm Amnesia)](docs/PERFORMANCE_STUDY.md)
+
 
 </div>
 
