@@ -12,28 +12,7 @@
     "no_context": 0.09333333333333334,
     "full_text": 0.86,
     "text_same_budget": 0.15666666666666668,
-    "memory": 0.6966666666666667,
-    "memory_wrong_doc": 0.09333333333333334
-  },
-  "smollm135m": {
-    "no_context": 0.08666666666666667,
-    "full_text": 0.7166666666666667,
-    "text_same_budget": 0.13333333333333333,
-    "memory": 0.71,
-    "memory_wrong_doc": 0.09666666666666666
-  },
-  "smollm135m_random_writer": {
-    "no_context": 0.08666666666666667,
-    "full_text": 0.7166666666666667,
-    "text_same_budget": 0.13333333333333333,
-    "memory": 0.10333333333333333,
-    "memory_wrong_doc": 0.10333333333333333
-  },
-  "qwen1.5b-instruct": {
-    "no_context": 0.07,
-    "full_text": 0.9766666666666667,
-    "text_same_budget": 0.15333333333333332,
-    "memory": 0.7133333333333334,
-    "memory_wrong_doc": 0.09333333333333334
+    "memory": 0.72,
+    "memory_wrong_doc": 0.06333333333333334
   }
 }

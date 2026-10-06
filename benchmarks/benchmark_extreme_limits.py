@@ -184,8 +184,8 @@ def run_experiment_2_decode_latency(device: str):
     steps = 100
     records = []
 
-    gist = GistLayer(d_model=QWEN_HIDDEN, d_map=d_map, decay=0.9995).to(device).eval()
-    prefill = ChunkedGistLayer(d_model=QWEN_HIDDEN, d_map=d_map, chunk_size=64, decay=0.9995).to(device).eval()
+    gist = GistLayer(d_model=QWEN_HIDDEN, d_map=d_map, decay=0.9995, kernel="prime").to(device).eval()
+    prefill = ChunkedGistLayer(d_model=QWEN_HIDDEN, d_map=d_map, chunk_size=64, decay=0.9995, kernel="prime").to(device).eval()
     prefill.load_state_dict(gist.state_dict(), strict=False)
 
     print(f"{'Context':>8} | {'Gist decode':>12} | {'SDPA attention decode':>22}")
@@ -241,7 +241,7 @@ def run_experiment_2_decode_latency(device: str):
 # =====================================================================
 def _handwired_layer(model, device, d_map):
     d_model = model.config.hidden_size
-    layer = GistLayer(d_model=d_model, d_map=d_map, decay=1.0).to(device).eval()
+    layer = GistLayer(d_model=d_model, d_map=d_map, decay=1.0, kernel="prime").to(device).eval()
     with torch.no_grad():
         layer.map_proj.weight.zero_()
         layer.q_proj.weight.zero_()
@@ -293,7 +293,7 @@ def run_experiment_4_capacity(device: str):
 
     d_model, d_map = 256, 32
     counts = [4, 8, 16, 32, 64, 128, 256]
-    layer = GistLayer(d_model=d_model, d_map=d_map, decay=1.0, use_salience_gate=False).to(device).eval()
+    layer = GistLayer(d_model=d_model, d_map=d_map, decay=1.0, kernel="prime", use_salience_gate=False).to(device).eval()
     records = []
 
     print(f"{'Pairs N':>8} | {'Top-1 retrieval':>15} | {'Mean cos(recall, target)':>24} | {'Eff. rank':>9}")

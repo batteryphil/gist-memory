@@ -1,0 +1,27 @@
+device=cuda  steps1=150 steps2=100 bs=32 n_eval=300
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 5151.77it/s]
+
+== Phase 1: train writer + connector for qwen0.5b ==
+/home/phil/.gemini/antigravity/scratch/venv/lib/python3.12/site-packages/transformers/integrations/sdpa_attention.py:158: UserWarning: Mem Efficient attention on Current AMD GPU is still experimental. Enable it with TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/hip/sdp_utils.cpp:498.)
+  attn_output = torch.nn.functional.scaled_dot_product_attention(
+    step   100/150  loss 5.021  skipped 0  (44s)
+    step   150/150  loss 4.151  skipped 0  (62s)
+/home/phil/.gemini/antigravity/scratch/venv/lib/python3.12/site-packages/transformers/integrations/sdpa_attention.py:158: UserWarning: Flash Efficient attention on Current AMD GPU is still experimental. Enable it with TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/hip/sdp_utils.cpp:438.)
+  attn_output = torch.nn.functional.scaled_dot_product_attention(
+  [qwen0.5b] no_context=9.3%  full_text=86.0%  text_same_budget=15.7%  memory=8.7%  memory_wrong_doc=7.3%
+
+== Connector only (writer frozen): smollm135m ==
+Loading weights:   0%|          | 0/272 [00:00<?, ?it/s]Loading weights: 100%|██████████| 272/272 [00:00<00:00, 3058.21it/s]
+    step   100/100  loss 5.840  skipped 0  (39s)
+  [smollm135m] no_context=8.7%  full_text=71.7%  text_same_budget=13.3%  memory=9.0%  memory_wrong_doc=9.0%
+
+== Control: SmolLM connector on an UNTRAINED (random) writer ==
+    step   100/100  loss 5.358  skipped 0  (38s)
+  [smollm135m+random_writer] no_context=8.7%  full_text=71.7%  text_same_budget=13.3%  memory=8.7%  memory_wrong_doc=8.3%
+
+== Connector only (writer frozen): qwen1.5b-instruct ==
+Loading weights:   0%|          | 0/338 [00:00<?, ?it/s]Loading weights: 100%|██████████| 338/338 [00:00<00:00, 4863.31it/s]
+    step   100/100  loss 4.515  skipped 0  (44s)
+  [qwen1.5b-instruct] no_context=7.0%  full_text=97.7%  text_same_budget=15.3%  memory=8.7%  memory_wrong_doc=9.3%
+
+Saved /home/phil/.gemini/antigravity/scratch/prime_gist_analysis/gist-memory/experiments/universal_connector/results_quick.json

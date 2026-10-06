@@ -66,7 +66,7 @@ class GistLayer(nn.Module):
         d_map: int = 32,
         decay: Union[float, nn.Module] = 0.9995,
         eps: float = 1e-4,
-        kernel: Literal["square", "relu2", "elu1"] = "square",
+        kernel: Literal["square", "relu2", "elu1", "prime"] = "square",
         use_salience_gate: bool = True,
         fp32_accumulator: bool = True,
     ):
@@ -123,6 +123,8 @@ class GistLayer(nn.Module):
             return F.relu(x) ** 2
         elif self.kernel == "elu1":
             return F.elu(x) + 1.0
+        elif self.kernel == "prime":
+            return torch.exp(4.0 * x)
         else:
             raise ValueError(f"Unknown kernel: {self.kernel}")
 

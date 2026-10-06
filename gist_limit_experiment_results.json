@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "timestamp": "2026-10-05 18:51:32",
-    "pytorch_version": "2.14.0+rocm7.2",
-    "cuda_available": true,
-    "device_name": "AMD Radeon Graphics",
+    "timestamp": "2026-10-06 10:53:13",
+    "pytorch_version": "2.14.1+cu130",
+    "cuda_available": false,
+    "device_name": "CPU",
     "note": "Gist layers are UNTRAINED. Sizes/timings only; no quality metrics."
   },
   "experiment_1_state_size": [
@@ -12,138 +12,120 @@
       "qwen_kv_cache_mb": 12.0,
       "gist_state_kb_24_layers": 2691.0,
       "size_ratio": 4.5663322185061315,
-      "prefill_time_sec_single_layer": 0.013999470975250006,
-      "throughput_tokens_per_sec_single_layer": 73145.62113170946,
-      "peak_vram_mb": 118.99658203125
+      "prefill_time_sec_single_layer": 0.02522123232483864,
+      "throughput_tokens_per_sec_single_layer": 40600.71240022374,
+      "peak_vram_mb": 0.0
     },
     {
       "seq_len": 4096,
       "qwen_kv_cache_mb": 48.0,
       "gist_state_kb_24_layers": 2691.0,
       "size_ratio": 18.265328874024526,
-      "prefill_time_sec_single_layer": 0.052345506846904755,
-      "throughput_tokens_per_sec_single_layer": 78249.31396651862,
-      "peak_vram_mb": 216.99267578125
+      "prefill_time_sec_single_layer": 0.08282216917723417,
+      "throughput_tokens_per_sec_single_layer": 49455.357674040395,
+      "peak_vram_mb": 0.0
     },
     {
       "seq_len": 16384,
       "qwen_kv_cache_mb": 192.0,
       "gist_state_kb_24_layers": 2691.0,
       "size_ratio": 73.0613154960981,
-      "prefill_time_sec_single_layer": 0.20542433438822627,
-      "throughput_tokens_per_sec_single_layer": 79756.86059197003,
-      "peak_vram_mb": 611.03955078125
+      "prefill_time_sec_single_layer": 0.3047470389865339,
+      "throughput_tokens_per_sec_single_layer": 53762.62245069418,
+      "peak_vram_mb": 0.0
     },
     {
       "seq_len": 32768,
       "qwen_kv_cache_mb": 384.0,
       "gist_state_kb_24_layers": 2691.0,
       "size_ratio": 146.1226309921962,
-      "prefill_time_sec_single_layer": 0.4041070179082453,
-      "throughput_tokens_per_sec_single_layer": 81087.4311701267,
-      "peak_vram_mb": 1134.53955078125
+      "prefill_time_sec_single_layer": 0.5870816060341895,
+      "throughput_tokens_per_sec_single_layer": 55815.06840480318,
+      "peak_vram_mb": 0.0
     },
     {
       "seq_len": 65536,
       "qwen_kv_cache_mb": 768.0,
       "gist_state_kb_24_layers": 2691.0,
       "size_ratio": 292.2452619843924,
-      "prefill_time_sec_single_layer": 0.8228241102769971,
-      "throughput_tokens_per_sec_single_layer": 79647.64180030873,
-      "peak_vram_mb": 2183.16455078125
+      "prefill_time_sec_single_layer": 1.1426928811706603,
+      "throughput_tokens_per_sec_single_layer": 57352.243179164645,
+      "peak_vram_mb": 0.0
     },
     {
       "seq_len": 131072,
       "qwen_kv_cache_mb": 1536.0,
       "gist_state_kb_24_layers": 2691.0,
       "size_ratio": 584.4905239687848,
-      "prefill_time_sec_single_layer": 1.5030458187684417,
-      "throughput_tokens_per_sec_single_layer": 87204.26108326967,
-      "peak_vram_mb": 4280.41455078125
+      "prefill_time_sec_single_layer": 2.491511435713619,
+      "throughput_tokens_per_sec_single_layer": 52607.42460227093,
+      "peak_vram_mb": 0.0
     }
   ],
   "experiment_2_decode_latency": [
     {
       "context": 1000,
-      "gist_decode_us": 799.0449108183384,
-      "sdpa_decode_us": 182.47785978019238
+      "gist_decode_us": 463.77165243029594,
+      "sdpa_decode_us": 73.01682606339455
     },
     {
       "context": 4000,
-      "gist_decode_us": 779.0763396769762,
-      "sdpa_decode_us": 561.884343624115
+      "gist_decode_us": 447.5880600512028,
+      "sdpa_decode_us": 345.6171369180083
     },
     {
       "context": 16000,
-      "gist_decode_us": 785.8706871047616,
-      "sdpa_decode_us": 2065.845802426338
+      "gist_decode_us": 460.8948063105345,
+      "sdpa_decode_us": 2152.8543205931783
     },
     {
       "context": 64000,
-      "gist_decode_us": 804.5236580073833,
-      "sdpa_decode_us": 7318.979511037469
+      "gist_decode_us": 458.95228162407875,
+      "sdpa_decode_us": 7728.767027147114
     }
   ],
   "experiment_4_capacity": [
     {
       "pairs": 4,
       "top1_retrieval": 0.5,
-      "mean_target_cos": 0.5555292367935181,
-      "effective_rank": 3.723304846003409
+      "mean_target_cos": 0.5125889778137207,
+      "effective_rank": 3.463463702304348
     },
     {
       "pairs": 8,
       "top1_retrieval": 0.0,
-      "mean_target_cos": 0.31769469380378723,
-      "effective_rank": 7.248353956588253
+      "mean_target_cos": 0.18965087831020355,
+      "effective_rank": 3.0353725188267107
     },
     {
       "pairs": 16,
-      "top1_retrieval": 0.125,
-      "mean_target_cos": 0.26073533296585083,
-      "effective_rank": 13.464991921452624
+      "top1_retrieval": 0.0,
+      "mean_target_cos": 0.040347836911678314,
+      "effective_rank": 6.065358127189271
     },
     {
       "pairs": 32,
-      "top1_retrieval": 0.0,
-      "mean_target_cos": 0.15823809802532196,
-      "effective_rank": 22.741127554331463
+      "top1_retrieval": 0.0625,
+      "mean_target_cos": 0.09391741454601288,
+      "effective_rank": 7.483050099814915
     },
     {
       "pairs": 64,
-      "top1_retrieval": 0.015625,
-      "mean_target_cos": 0.12227386236190796,
-      "effective_rank": 26.45493815655551
+      "top1_retrieval": 0.0,
+      "mean_target_cos": 0.014537959359586239,
+      "effective_rank": 17.033117550213632
     },
     {
       "pairs": 128,
       "top1_retrieval": 0.0,
-      "mean_target_cos": 0.07570433616638184,
-      "effective_rank": 28.47063309835195
+      "mean_target_cos": 0.014485115185379982,
+      "effective_rank": 15.013779322912887
     },
     {
       "pairs": 256,
       "top1_retrieval": 0.0,
-      "mean_target_cos": 0.06453864276409149,
-      "effective_rank": 28.111594797041924
+      "mean_target_cos": 0.008637706749141216,
+      "effective_rank": 8.895327444015276
     }
-  ],
-  "experiment_3_handwired_lookup_toy": {
-    "facts": 10,
-    "top1_acc_pct": 90.0
-  },
-  "experiment_5_state_algebra_toy": {
-    "summed": {
-      "A": 3,
-      "B": 3,
-      "C": 3,
-      "D": 3
-    },
-    "after_removing_C": {
-      "A": 3,
-      "B": 3,
-      "C": 0,
-      "D": 3
-    }
-  }
+  ]
 }

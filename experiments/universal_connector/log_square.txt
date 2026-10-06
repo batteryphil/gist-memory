@@ -1,10 +1,13 @@
-device=cuda  steps1=150 steps2=100 bs=32 n_eval=300
+device=cpu  steps1=150 steps2=100 bs=32 n_eval=300
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 4226.50it/s]
 
-== Phase 1: train writer + connector for qwen0.5b ==    step   100/150  loss 4.919  skipped 0  (2178s)
+== Phase 1: train writer + connector for qwen0.5b ==
+    step   100/150  loss 4.919  skipped 0  (2178s)
     step   150/150  loss 3.931  skipped 0  (3243s)
   [qwen0.5b] no_context=9.3%  full_text=86.7%  text_same_budget=15.7%  memory=10.7%  memory_wrong_doc=9.0%
 
 == Connector only (writer frozen): smollm135m ==
+Loading weights:   0%|          | 0/272 [00:00<?, ?it/s]Loading weights:  82%|████████▏ | 223/272 [00:00<00:00, 2203.62it/s]Loading weights: 100%|██████████| 272/272 [00:00<00:00, 2233.01it/s]
     step   100/100  loss 4.803  skipped 0  (1471s)
   [smollm135m] no_context=8.3%  full_text=72.3%  text_same_budget=13.7%  memory=9.7%  memory_wrong_doc=9.7%
 
@@ -13,7 +16,5 @@ device=cuda  steps1=150 steps2=100 bs=32 n_eval=300
   [smollm135m+random_writer] no_context=8.3%  full_text=72.3%  text_same_budget=13.7%  memory=7.0%  memory_wrong_doc=7.7%
 
 == Connector only (writer frozen): qwen1.5b-instruct ==
+Loading weights:   0%|          | 0/338 [00:00<?, ?it/s]Loading weights: 100%|██████████| 338/338 [00:00<00:00, 4678.12it/s]
     step   100/100  loss 5.173  skipped 0  (3139s)
-1.5b-instruct] no_context=7.0%  full_text=97.7%  text_same_budget=15.3%  memory=8.7%  memory_wrong_doc=8.7%
-
-Saved /home/phil/.gemini/antigravity/scratch/prime_gist_analysis/gist-memory/experiments/universal_connector/results_quick.json

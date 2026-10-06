@@ -1,39 +1,39 @@
 {
   "config": {
-    "steps1": 30,
-    "steps2": 30,
-    "bs": 8,
-    "n_eval": 24,
+    "steps1": 150,
+    "steps2": 100,
+    "bs": 32,
+    "n_eval": 300,
     "writer_layer": 12,
     "K": 16,
     "d_map": 64
   },
   "qwen0.5b": {
-    "no_context": 0.08333333333333333,
-    "full_text": 0.7916666666666666,
-    "text_same_budget": 0.16666666666666666,
-    "memory": 0.0,
-    "memory_wrong_doc": 0.0
+    "no_context": 0.09333333333333334,
+    "full_text": 0.86,
+    "text_same_budget": 0.15666666666666668,
+    "memory": 0.08333333333333333,
+    "memory_wrong_doc": 0.10333333333333333
   },
   "smollm135m": {
-    "no_context": 0.0,
-    "full_text": 0.75,
-    "text_same_budget": 0.125,
-    "memory": 0.0,
-    "memory_wrong_doc": 0.0
+    "no_context": 0.08666666666666667,
+    "full_text": 0.7166666666666667,
+    "text_same_budget": 0.13333333333333333,
+    "memory": 0.08,
+    "memory_wrong_doc": 0.08
   },
   "smollm135m_random_writer": {
-    "no_context": 0.0,
-    "full_text": 0.75,
-    "text_same_budget": 0.125,
-    "memory": 0.041666666666666664,
-    "memory_wrong_doc": 0.041666666666666664
+    "no_context": 0.08666666666666667,
+    "full_text": 0.7166666666666667,
+    "text_same_budget": 0.13333333333333333,
+    "memory": 0.10333333333333333,
+    "memory_wrong_doc": 0.10333333333333333
   },
   "qwen1.5b-instruct": {
-    "no_context": 0.0,
-    "full_text": 0.9583333333333334,
-    "text_same_budget": 0.08333333333333333,
-    "memory": 0.08333333333333333,
-    "memory_wrong_doc": 0.08333333333333333
+    "no_context": 0.07,
+    "full_text": 0.9766666666666667,
+    "text_same_budget": 0.15333333333333332,
+    "memory": 0.08666666666666667,
+    "memory_wrong_doc": 0.08666666666666667
   }
 }

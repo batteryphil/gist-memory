@@ -1,6 +1,9 @@
 device=cuda  steps1=3000 steps2=2000 bs=32 n_eval=300
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 4678.12it/s]
 
 == Phase 1: train writer + connector for qwen0.5b ==
+/home/phil/.gemini/antigravity/scratch/venv/lib/python3.12/site-packages/transformers/integrations/sdpa_attention.py:158: UserWarning: Mem Efficient attention on Current AMD GPU is still experimental. Enable it with TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/hip/sdp_utils.cpp:498.)
+  attn_output = torch.nn.functional.scaled_dot_product_attention(
     step   100/3000  loss 4.688  skipped 0  (41s)
     step   200/3000  loss 2.881  skipped 0  (79s)
     step   300/3000  loss 1.620  skipped 0  (117s)
@@ -31,6 +34,8 @@ device=cuda  steps1=3000 steps2=2000 bs=32 n_eval=300
     step  2800/3000  loss 0.477  skipped 1  (1042s)
     step  2900/3000  loss 0.476  skipped 1  (1078s)
     step  3000/3000  loss 0.491  skipped 1  (1115s)
+/home/phil/.gemini/antigravity/scratch/venv/lib/python3.12/site-packages/transformers/integrations/sdpa_attention.py:158: UserWarning: Flash Efficient attention on Current AMD GPU is still experimental. Enable it with TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/transformers/hip/sdp_utils.cpp:438.)
+  attn_output = torch.nn.functional.scaled_dot_product_attention(
   [qwen0.5b] no_context=9.3%  full_text=86.0%  text_same_budget=15.7%  memory=72.0%  memory_wrong_doc=6.3%
 
 Saved /home/phil/.gemini/antigravity/scratch/prime_gist_analysis/gist-memory/experiments/universal_connector/results.json
