@@ -1,15 +1,27 @@
 """
-core.py — Generative Thought Reconstruction Layer (GistLayer)
-=============================================================
-Biomimetic constructive associative memory layer for Transformer & SSM backbones.
+core.py — GistLayer: decayed kernelized linear attention with a gated residual
+=============================================================================
+Mathematically, GistLayer is linear attention with exponential decay — the same
+family as Katharopoulos et al. 2020 ("Transformers are RNNs"), RetNet (Sun et al.
+2023), and Gated Linear Attention (Yang et al. 2023):
 
-Instead of storing verbatim tokens or unbounded KV pairs across expanding horizons,
-GistLayer:
-1. Compresses hidden trajectory x_t in R^D into a compact topological blueprint m_t in R^d_map.
-2. Gates consolidation with a salience detector gamma_t in [0, 1] identifying invariant facts.
-3. Consolidates outer products m_t^2 (x) v_t into an O(1) second-order associative manifold M.
-4. Dynamically reconstructs thoughts via associative readout upon query q_t.
-5. Injects reconstructed thoughts through a zero-initialized gated residual connection.
+    k_t = phi(RMSNorm(W_k x_t)) * gamma_t      (gamma_t: optional sigmoid gate)
+    q_t = phi(RMSNorm(W_q x_t))
+    v_t = W_v x_t
+    M_t = lambda * M_{t-1} + k_t v_t^T         (d_map x D state)
+    Z_t = lambda * Z_{t-1} + k_t
+    y_t = (q_t^T M_t) / (q_t^T Z_t + eps)
+    out = x_t + sigmoid(W_g x_t + b_g) * (W_o y_t)     (W_o zero-initialized)
+
+In code: map_proj = W_k ("blueprint"), q_proj = W_q, v_proj = W_v,
+recon_proj = W_o, recon_gate = W_g.
+
+Complexity notes:
+- Streaming decode (L == 1 with a prior state) is O(d_map * D) per token.
+- The parallel path below materializes an [B, L, L] matrix, i.e. O(L^2) time
+  and memory. Use ChunkedGistLayer for long sequences.
+- A fixed-size state necessarily loses information as sequences grow; capacity
+  is bounded by d_map. Nothing here has been trained or evaluated for quality.
 """
 
 from __future__ import annotations

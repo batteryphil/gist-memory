@@ -1,272 +1,104 @@
-<div align="center">
+# Gist Memory
 
-# 🧠 Gist Memory
-### Biomimetic Constructive Associative Memory for Language Models
+Decayed linear-attention memory layer for PyTorch, plus a zero-initialized adapter for adding it to Hugging Face decoder models.
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-brightgreen.svg)]()
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)]()
-[![State Size](https://img.shields.io/badge/Memory%20State-O(1)%20%7E64_KB-purple.svg)]()
-[![Zero-Init](https://img.shields.io/badge/Zero--Init-100%25%20Bitwise%20Safe-success.svg)]()
-[![Empirical Study](https://img.shields.io/badge/Empirical%20Limits-128k%20Tested%20%7C%20O(1)-orange.svg)](docs/PERFORMANCE_STUDY.md)
-
-**A fixed-size, second-order associative memory manifold that replaces unbounded $O(N)$ KV caches with compact, $O(1)$ topological thought blueprints.**
-
-> 📊 **Read the Empirical Limit Study**: [Empirical Limit & Performance Study (128k Tokens, 99.36% API Cost Reduction, Swarm Amnesia)](docs/PERFORMANCE_STUDY.md)
-
-
-</div>
+> [!NOTE]
+> **Status: Experimental, Proven for Short-Context Compression.** 
+> While originally designed for infinite context length, our internal experiments have shown that this fixed-size linear attention state cannot reliably compress documents longer than ~1,000 tokens (accuracy collapses to random chance). 
+> 
+> However, **it is highly effective at compressing short contexts (~150-300 tokens)** and acts as a universal, dense communication channel between different LLMs.
 
 ---
 
-## ⚡ Overview
+## What it is actually good for
 
-In modern Transformers, the standard Key-Value (KV) cache acts as purely *verbatim memory*: storing uncompressed activations for every single token across time. Over long horizons, this causes:
-- **Catastrophic VRAM Blowup**: $O(N)$ memory expansion (consuming 8–16+ GB of VRAM just for token caches at 64k+ context).
-- **Memory-Bandwidth Bottlenecks**: Autoregressive decode slows down dramatically as GPUs become memory-bus bound.
-- **Needle Dilution**: Softmax attention spreads probability mass across thousands of irrelevant filler tokens.
+Instead of replacing RAG or scaling to infinite document lengths, `GistLayer` is a powerful tool for:
 
-**Gist Memory** introduces biomimetic constructive memory inspired by *Fuzzy Trace Theory* in cognitive psychology. Instead of memorizing surface tokens verbatim, Gist Memory distills semantic concepts and invariant facts into an $O(1)$ quadratic manifold ($\sim 64\text{ KB}$ per layer) and dynamically reconstructs the cognitive trajectory upon associative query.
+1. **System Prompt & Persona Compression:** You can run a frozen writer model over a 200-token system prompt, compress it into 16 `Gist` memory vectors, and cache them. Instead of paying the compute and token costs to process that persona on every API call, you just prepend the 16 memory tokens. 
+2. **Multi-Agent Swarm Communication ("The Universal Connector"):** Our experiments (see `experiments/universal_connector/`) prove that a memory written by a small, cheap model (e.g., Qwen-0.5B) can be seamlessly read by a completely different model family (e.g., SmolLM-135M or a 72B-parameter giant) by training a tiny 6M parameter MLP connector. Small agents can generate a dense "gist" of an environment and hand it directly to a massive reasoning model without passing the raw text.
+3. **Very Short-Term Working Memory:** For streaming agents monitoring a continuous chat or log, Gist naturally decays older information. It maintains a constant-size rolling summary of the most recent ~500 tokens without ever blowing up your GPU memory or KV cache.
 
----
+## How it works
 
-## 🔬 Mathematical Architecture
+`GistLayer` is kernelized linear attention with exponential decay — the same family as [Katharopoulos et al. 2020](https://arxiv.org/abs/2006.16236) ("Transformers are RNNs"), [RetNet](https://arxiv.org/abs/2307.08621) and [Gated Linear Attention](https://arxiv.org/abs/2312.06635):
 
 ```
-Incoming Hidden Stream: x_t ∈ R^D
- │
- ├──► [Topological Blueprint]:  m_t = RMSNorm(W_m x_t) ∈ R^d_m   (d_m ≪ D, e.g. 32)
- ├──► [Associative Query]:      q_t = RMSNorm(W_q x_t) ∈ R^d_m
- ├──► [Information Payload]:    v_t = W_v x_t ∈ R^D
- └──► [Novelty/Salience Gate]:  γ_t = σ(w_s^T x_t + b_s) ∈ [0, 1]
-                                 │
-                                 ▼
-                     Kernel Map: m_sq = (m_t ⊙ m_t) · γ_t
-                                 q_sq = (q_t ⊙ q_t)
-                                 │
-                                 ▼
- ┌────────────────────────────────────────────────────────────────────────┐
- │                 O(1) Associative Manifold Accumulation                 │
- │                                                                        │
- │   Normalizer State:  Z_t = λ Z_{t-1} + m_sq                            │
- │   Memory Matrix:     M_t = λ M_{t-1} + m_sq ⊗ v_t    (M ∈ R^(d_m x D)) │
- └────────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-    [Associative Recall]: recall_t = (q_sq^T M_t) / (q_sq^T Z_t + ε)
-                                 │
-                                 ▼
-    [Generative Reconstruct]: recon_t = W_recon · recall_t  (Zero-Init)
-                                 │
-                                 ▼
-    [Residual Injection]:    x_out = x_t + σ(W_g x_t + b_g) ⊙ recon_t
+k_t = φ(RMSNorm(W_k x_t)) · γ_t        γ_t = σ(w_s·x_t + b)   (optional gate)
+q_t = φ(RMSNorm(W_q x_t))              φ ∈ {x², ReLU(x)², ELU(x)+1}
+v_t = W_v x_t
+
+M_t = λ M_{t-1} + k_t v_tᵀ             state: d_map × D
+Z_t = λ Z_{t-1} + k_t                  normalizer: d_map
+
+y_t   = (q_tᵀ M_t) / (q_tᵀ Z_t + ε)
+out_t = x_t + σ(W_g x_t + b_g) ⊙ (W_o y_t)          W_o initialized to 0
 ```
 
-### Key Properties
-1. **$O(1)$ Flat Memory State**: Memory footprint is fixed for all sequence lengths ($10^2$ to $10^7$ tokens).
-2. **Multi-Scale Learnable Decay**: Retention timescales $\lambda_k = \exp(-\text{softplus}(\alpha_k))$ cover geometric progressions of half-lives (8 tokens to 65,536+ tokens).
-3. **Multi-Head Disentanglement**: `MultiHeadGistLayer` separates entity tracking, logical connectives, and narrative gist across $H$ independent sub-manifolds.
-4. **Chunked SSD Linear Scan**: Replaces quadratic $O(L^2)$ prefill matrices with $O(L \cdot C)$ block-parallel scans for 128k context training on single GPUs.
-5. **Strict Zero-Initialization**: Output projection $W_{recon}$ initializes to zero, guaranteeing that grafting Gist onto a pretrained model (e.g. DeepSeek-R1, Qwen2, LLaMA-3) preserves 100% of baseline model weights and outputs at step 0.
+### Properties that hold
+- **Fixed-size recurrent state.** `d_map × D + d_map` floats per layer per sequence (e.g. 32×896 fp32 ≈ 112 KB), independent of sequence length.
+- **O(d_map·D) per decoded token** once a state exists.
+- **Zero-init identity.** Because `W_o = 0`, a freshly wrapped model produces the same logits as the base model.
+- **Parallel ≡ streaming.** The parallel and step-by-step paths give the same outputs.
+- **State is linear in (k, v).** States from separate streams can be added; a stream's contribution can be subtracted exactly.
+
+### Limitations
+- **It does not scale to long contexts.** The linear-attention state acts as a fixed-size bucket. Over ~1,000+ tokens, new information overwrites older information, washing out the facts. Chunking the state does not fix this without deeper architectural changes. Use RAG for long-context retrieval.
+- **Fixed state ⇒ lossy.** It cannot replace the KV cache losslessly.
+- **`GistLayer` prefill is O(L²)** (it builds an L×L matrix). Use `ChunkedGistLayer` for long sequences.
 
 ---
 
-## 📊 Comparison: Softmax KV Cache vs Gist Memory
+## Install
 
-| Metric | Standard Softmax KV Cache | Gist Memory (Ours) | Advantage |
-| :--- | :--- | :--- | :--- |
-| **Decode State Memory** | $O(N)$ (Unbounded) | **$O(1)$ (Constant)** | **Zero VRAM expansion** |
-| **24-Layer VRAM at 65k** | **$12.00\text{ GB}$** | **$6.15\text{ MB}$** | **$2,047\times$ compression** |
-| **Decode Step Complexity** | $O(N)$ memory bandwidth | **$O(1)$ FLOPs & Bandwidth** | Flat latency across horizon |
-| **Prefill Complexity** | $O(L^2)$ Attention | **$O(L \cdot C)$ Chunked SSD** | $1,000\times$ less activation VRAM |
-| **Cross-Session Storage** | Gigabytes per conversation | **$< 100\text{ KB}$ Snapshot** | Save memory snapshots to disk |
-| **Pretrained Surgery** | Destructive / non-trivial | **100% Safe Zero-Init** | Identity mapping at step 0 |
-
----
-
-## 🚀 Quickstart
-
-### Installation
 ```bash
 git clone https://github.com/batteryphil/gist-memory.git
 cd gist-memory
 pip install -e .
 ```
 
-### 1. Minimal Standalone Usage
+## Usage
+
 ```python
 import torch
 from gist_memory import GistLayer
 
-# Hidden size 512, blueprint dimension 32 (State size = 64 KB)
 layer = GistLayer(d_model=512, d_map=32, decay=0.9995)
 
-# Parallel prefill over 1,000 tokens
-prompt = torch.randn(1, 1000, 512)
-out_prompt, state = layer(prompt, return_state=True)
+out, state = layer(torch.randn(1, 1000, 512), return_state=True)          # prefill
+out, state = layer(torch.randn(1, 1, 512), state=state, return_state=True) # one decode step
 
-# Autoregressive streaming decode in O(1) memory
-token = torch.randn(1, 1, 512)
-out_next, state = layer(token, state=state, return_state=True)
-
-# Inspect manifold capacity
-print(state.effective_capacity())
-# -> {'effective_rank': 28.57, 'max_rank': 32, 'condition_number': 6.98}
+state.save("state.pt")   # ~64 KB for this config
 ```
 
-### 2. Surgical Injection into Hugging Face Models
+Adding to a Hugging Face model:
+
 ```python
 from transformers import AutoModelForCausalLM
-from gist_memory import GistModelAdapter, GistCache
+from gist_memory import GistModelAdapter
 
-model = AutoModelForCausalLM.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
-
-# Graft Gist Memory onto layers 3, 7, 11, 15
+model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-0.5B")
 adapter = GistModelAdapter(model, target_layers=[3, 7, 11, 15], d_map=32)
 
-# Zero-init guarantee: base model is 100% untouched
-assert adapter.verify_zero_init(test_input_ids) == 0.0
+ids = torch.randint(0, model.config.vocab_size, (1, 32))
+assert adapter.verify_zero_init(ids) == 0.0   # wrapped model == base model at init
 
-# Freeze trunk, train only Gist associative projections (< 1% of total params)
-stats = adapter.freeze_backbone()
-print(f"Trainable Gist parameters: {stats['trainable_gist_params']:,} ({stats['trainable_pct']:.2f}%)")
-```
-
-### 3. Document Memory Freezing (< 100 KB Snapshots)
-```python
-from gist_memory import GistState
-
-# Ingest a 50,000 token book or code repository into Gist
-_, doc_state = layer(long_document, return_state=True)
-
-# Save cognitive snapshot to disk (~66 KB)
-doc_state.save("book_memory.pt")
-
-# In a separate session or user prompt, query without re-reading the book:
-restored_state = GistState.load("book_memory.pt")
-answer, _ = layer(user_question, state=restored_state)
+stats = adapter.freeze_backbone()             # only Gist params trainable
 ```
 
 ---
 
-## ⚙️ Advanced Capabilities
+## Experiments
 
-### Multi-Head Gist Memory (`MultiHeadGistLayer`)
-Splits the hidden state into $H$ heads, each with an independent sub-manifold and learnable decay half-life:
-```python
-from gist_memory import MultiHeadGistLayer
+Check out the `experiments/` folder for code proving that the Universal Connector allows different LLMs to read the same Gist memory via a small 6M parameter MLP.
 
-multi_gist = MultiHeadGistLayer(
-    d_model=2048,
-    num_heads=8,
-    d_map=16,
-    min_half_life=8.0,      # Short-term scratchpad head
-    max_half_life=65536.0,  # Long-term permanent fact head
-    learnable_decay=True,
-)
-```
+## Tests and benchmarks
 
-### Chunked SSD Linear Scan (`ChunkedGistLayer`)
-Divides long sequences into blocks of size $C=64$ and performs inter-chunk associative scans, reducing memory complexity from $O(L^2)$ to $O(L \cdot C)$:
-```python
-from gist_memory import ChunkedGistLayer
-
-chunked_gist = ChunkedGistLayer(d_model=1024, d_map=32, chunk_size=64)
-# Executes on 64k sequences without out-of-memory errors
-out, state = chunked_gist(long_sequence, return_state=True)
-```
-
-### C99 Recurrent Engine
-For edge, mobile, or Cosmopolitan libc deployment without Python/PyTorch dependencies:
 ```bash
-cd c
-make test
-```
-Header-only implementation located at `c/gist_memory.h`.
-
----
-
-## 🧪 Verification & Benchmarks
-
-Run the complete automated test suite:
-```bash
-python run_tests.py
-```
-```
-======================================================================
-  GIST MEMORY AUTOMATED TEST SUITE
-======================================================================
-[PASS] Numerical Equivalence: Parallel vs Streaming (Square Kernel)
-[PASS] Numerical Equivalence: Parallel vs Streaming (ReLU2 Kernel)
-[PASS] Numerical Equivalence: Parallel vs Streaming (ELU1 Kernel)
-[PASS] Chunked SSD vs Full Sequence Equivalence
-[PASS] MultiHead: Forward & Shape Validation
-[PASS] MultiHead: Gradient Flow & Parameter Updates
-[PASS] MultiHead: Streaming Step Equivalence
-[PASS] Decay: MultiScale Progression & Positivity
-[PASS] Decay: Data-Dependent Contextual Decay
-[PASS] State: Diagnostics, Energy & SVD Capacity
-[PASS] State: Disk Save & Load Roundtrip
-[PASS] Adapter: Strict Zero-Init Baseline Preservation
-[PASS] Adapter: GistCache Step-by-Step Propagation
-======================================================================
-  TEST RESULTS: 13 PASSED | 0 FAILED
-======================================================================
+python run_tests.py                              # internal-consistency tests
+python benchmarks/benchmark_extreme_limits.py    # sizes, speed, capacity, toy demos
 ```
 
-Run benchmarks:
-```bash
-python benchmarks/benchmark_speed_mem.py
-python benchmarks/benchmark_associative.py
-python benchmarks/benchmark_passkey.py
-```
+See `docs/PERFORMANCE_STUDY.md` for a detailed breakdown of the benchmark results and debunking of prior long-context claims.
 
----
-
-## 📁 Repository Structure
-
-```
-gist-memory/
-├── src/gist_memory/
-│   ├── __init__.py        # Public API
-│   ├── core.py            # GistLayer (Second-Order Quadratic Manifold)
-│   ├── multihead.py       # MultiHeadGistLayer with head-specific manifolds
-│   ├── decay.py           # MultiScaleDecay & DataDependentDecay
-│   ├── chunked.py         # Chunked SSD block-parallel scan (O(L) long-context)
-│   ├── state.py           # Typed GistState (SVD capacity, energy, save/load)
-│   └── adapter.py         # Universal HF Model Adapter (GistAdapter, GistCache)
-├── c/
-│   ├── gist_memory.h      # Pure C99 header-only recurrence engine
-│   ├── test_gist_c.c      # C99 verification suite
-│   └── Makefile           # Build script
-├── benchmarks/
-│   ├── benchmark_speed_mem.py    # VRAM scaling vs Softmax KV cache
-│   ├── benchmark_associative.py  # Multi-hop variable tracking (Delta > 0)
-│   └── benchmark_passkey.py      # Passkey needle-in-a-haystack retrieval
-├── examples/
-│   ├── 01_basic_usage.py         # 10-line standalone layer demo
-│   ├── 02_hf_model_patch.py      # Surgical injection into pretrained LLMs
-│   └── 03_state_persistence.py   # Document memory freezing (< 100 KB)
-├── tests/                        # Comprehensive test cases
-├── run_tests.py                  # Zero-dependency test runner
-├── pyproject.toml
-└── LICENSE                       # Apache-2.0
-```
-
----
-
-## 📜 Citation
-
-If you build upon Gist Memory in your research or applications, please cite:
-
-```bibtex
-@software{gist_memory2026,
-  author = {batteryphil},
-  title = {Gist Memory: Biomimetic Constructive Associative Memory for Language Models},
-  year = {2026},
-  url = {https://github.com/batteryphil/gist-memory}
-}
-```
-
-## 📄 License
-Licensed under the [Apache License, Version 2.0](LICENSE).
+## License
+Apache-2.0

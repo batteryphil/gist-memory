@@ -1,0 +1,73 @@
+{
+  "config": {
+    "K": 64,
+    "d_map": 128,
+    "steps1": 4000,
+    "steps2": 3000,
+    "bs": 8,
+    "n_eval": 150,
+    "lengths": {
+      "1024": 8,
+      "2048": 16,
+      "4096": 32
+    }
+  },
+  "qwen0.5b": {
+    "1024": {
+      "doc_tokens": 987,
+      "no_context": 0.1,
+      "full_text": 0.8466666666666667,
+      "first_64_tokens": 0.10666666666666667,
+      "rag_64_tokens": 0.8066666666666666,
+      "memory": 0.08,
+      "memory_wrong_doc": 0.05333333333333334
+    },
+    "2048": {
+      "doc_tokens": 1973,
+      "no_context": 0.07333333333333333,
+      "full_text": 0.78,
+      "first_64_tokens": 0.13333333333333333,
+      "rag_64_tokens": 0.6,
+      "memory": 0.06666666666666667,
+      "memory_wrong_doc": 0.07333333333333333
+    },
+    "4096": {
+      "doc_tokens": 3948,
+      "no_context": 0.16,
+      "full_text": 0.6333333333333333,
+      "first_64_tokens": 0.11333333333333333,
+      "rag_64_tokens": 0.5533333333333333,
+      "memory": 0.10666666666666667,
+      "memory_wrong_doc": 0.12666666666666668
+    }
+  },
+  "smollm135m": {
+    "1024": {
+      "doc_tokens": 992,
+      "no_context": 0.1,
+      "full_text": 0.5533333333333333,
+      "first_64_tokens": 0.11333333333333333,
+      "rag_64_tokens": 0.48,
+      "memory": 0.08666666666666667,
+      "memory_wrong_doc": 0.06666666666666667
+    },
+    "2048": {
+      "doc_tokens": 1983,
+      "no_context": 0.09333333333333334,
+      "full_text": 0.2866666666666667,
+      "first_64_tokens": 0.12666666666666668,
+      "rag_64_tokens": 0.3466666666666667,
+      "memory": 0.08,
+      "memory_wrong_doc": 0.08666666666666667
+    },
+    "4096": {
+      "doc_tokens": 3968,
+      "no_context": 0.06666666666666667,
+      "full_text": null,
+      "first_64_tokens": 0.1,
+      "rag_64_tokens": 0.32666666666666666,
+      "memory": 0.05333333333333334,
+      "memory_wrong_doc": 0.05333333333333334
+    }
+  }
+}

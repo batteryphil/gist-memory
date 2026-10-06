@@ -97,7 +97,23 @@ def test_gist_cache_propagation():
     print("  [+] GistCache successfully carries recurrent states across generation steps.")
 
 
+def test_verify_zero_init_detects_perturbation():
+    torch.manual_seed(0)
+    model = MockCausalLM(hidden_size=64, num_layers=4, vocab_size=100)
+    adapter = GistModelAdapter(model=model, target_layers=[1, 3], d_map=16)
+    ids = torch.randint(0, 100, (1, 16))
+
+    assert adapter.verify_zero_init(ids) == 0.0
+
+    with torch.no_grad():
+        adapter.wrapped_layers[1].gist.recon_proj.weight.normal_(std=0.1)
+    diff = adapter.verify_zero_init(ids)
+    print(f"  [+] verify_zero_init after perturbing recon_proj: {diff:.3e}")
+    assert diff > 0.0, "verify_zero_init failed to detect a non-zero Gist contribution"
+
+
 if __name__ == "__main__":
     test_zero_init_preservation()
     test_gist_cache_propagation()
+    test_verify_zero_init_detects_perturbation()
     print("[SUCCESS] All HF adapter tests passed!")

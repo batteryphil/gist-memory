@@ -33,7 +33,7 @@ def main():
     print("   AUTONOMOUS AGENT SWARM WITH GIST MEMORY CONSOLIDATION")
     print("=" * 75)
 
-    model_path = "/home/phil/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B/snapshots/060db6499f32faf8b98477b0a26969ef7d8b9987"
+    model_path = os.environ.get("GIST_MODEL", "Qwen/Qwen2.5-0.5B")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print(f"\n[1] Initializing local base model on {device}...")

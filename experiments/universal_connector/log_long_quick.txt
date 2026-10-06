@@ -1,0 +1,15 @@
+device=cuda K=64 d_map=128 steps1=60 steps2=60 bs=4 n_eval=16
+
+== Phase 1: writer + connector for qwen0.5b ==
+    step    60/60  loss 9.653  skipped 0  (25s)
+  [qwen0.5b @ 1024] doc_tokens=988  no_context=0.0%  full_text=81.2%  first_64_tokens=6.2%  rag_64_tokens=75.0%  memory=6.2%  memory_wrong_doc=6.2%
+  [qwen0.5b @ 2048] doc_tokens=1974  no_context=12.5%  full_text=87.5%  first_64_tokens=6.2%  rag_64_tokens=56.2%  memory=6.2%  memory_wrong_doc=6.2%
+  [qwen0.5b @ 4096] doc_tokens=3948  no_context=0.0%  full_text=56.2%  first_64_tokens=6.2%  rag_64_tokens=43.8%  memory=12.5%  memory_wrong_doc=6.2%
+
+== Phase 2: connector only (writer frozen) for smollm135m ==
+    step    60/60  loss 10.333  skipped 0  (21s)
+  [smollm135m @ 1024] doc_tokens=994  no_context=6.2%  full_text=75.0%  first_64_tokens=12.5%  rag_64_tokens=50.0%  memory=0.0%  memory_wrong_doc=0.0%
+  [smollm135m @ 2048] doc_tokens=1982  no_context=6.2%  full_text=25.0%  first_64_tokens=12.5%  rag_64_tokens=43.8%  memory=0.0%  memory_wrong_doc=0.0%
+  [smollm135m @ 4096] doc_tokens=3968  no_context=6.2%  full_text=N/A  first_64_tokens=6.2%  rag_64_tokens=31.2%  memory=0.0%  memory_wrong_doc=0.0%
+
+Saved /home/phil/.gemini/antigravity/scratch/gist-memory/experiments/universal_connector/results_long_quick.json

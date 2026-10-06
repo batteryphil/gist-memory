@@ -1,18 +1,25 @@
 """
-swarm.py — Multi-Agent Swarm Memory Consolidation via Gist State Algebra
-========================================================================
-Implements decentralized and federated agent swarm memory mechanics:
-1. SwarmAgent: Specialized autonomous worker (Scout, Auditor, Hunter, Coordinator).
-2. SwarmMemoryPool: Lossless linear state aggregator (Map-Reduce reading, surgical ablation).
-3. GistSwarm: Orchestration framework for multi-agent investigation & collective intelligence.
+swarm.py — Combining Gist states by addition / subtraction
+==========================================================
+Utilities for summing and subtracting GistState tensors produced by different
+"agents" (i.e. different input streams processed by the same GistLayer weights).
 
-Key Mathematical Properties:
-- Zero Token Communication: Agents exchange associative state tensors (M ∈ R^(d_map x D),
-  Z ∈ R^d_map, ~32–64 KB), not conversation transcripts.
-- Commutative & Associative: M_swarm = sum_i(M_i). Order of agent reading does not affect
-  the fused associative manifold.
-- Surgical Ablation: M_ablated = M_swarm - M_k removes an agent's contribution with zero
-  retraining or context reprocessing.
+What is actually true:
+- The recurrence is linear in the inputs, so with no decay, the state from
+  processing streams A and B separately and adding them equals the state from
+  processing both (order-independent). With decay < 1 this only holds up to
+  per-stream decay weighting.
+- Subtracting a stream's state exactly removes its additive contribution to M/Z.
+
+What is NOT implied:
+- This is not "unlearning" of model weights and not a privacy guarantee. Readout
+  is a normalized ratio, so other streams' recall changes too, and if streams
+  share key directions their contributions interfere.
+- ``ingest_bindings_handwired`` writes projection weights directly from token
+  embeddings (a hand-built lookup table). Results from it demonstrate linear
+  superposition with orthogonal-ish keys, not learned memory.
+- Agents exchange tensors, not text — but a receiving model must share identical
+  Gist weights, and no trained model consuming these states exists here.
 """
 
 from __future__ import annotations
@@ -103,7 +110,7 @@ class SwarmAgent:
 
         return self.export_states()
 
-    def ingest_bindings(
+    def ingest_bindings_handwired(
         self,
         keys: List[str],
         values: List[str],
@@ -111,8 +118,12 @@ class SwarmAgent:
         slot_offset: int = 0,
     ) -> Dict[int, GistState]:
         """
-        Binds key tokens to value target tokens directly into Gist associative manifold.
-        Used for provable ground-truth token recall benchmarks.
+        TOY DEMO — hand-wired lookup table, not learned memory.
+
+        OVERWRITES rows of ``map_proj`` and ``q_proj`` with the key tokens'
+        embeddings (one slot per key), then accumulates (key -> value) outer
+        products. Recall afterwards works because the key projection was built
+        from the answers. Useful only to illustrate linear superposition.
         """
         if self.gist_layer is None or self.tokenizer is None:
             raise RuntimeError(f"Agent {self.agent_id} lacks gist_layer or tokenizer for binding ingestion.")
@@ -159,6 +170,9 @@ class SwarmAgent:
         )
         self.current_states[0] = state
         return self.export_states()
+
+    # Backward-compatible alias (deprecated name hid that weights are hand-written)
+    ingest_bindings = ingest_bindings_handwired
 
     def export_states(self) -> Dict[int, GistState]:
         """Exports a copy of the agent's current Gist states."""
@@ -294,8 +308,9 @@ class SwarmMemoryPool:
 
     def ablate(self, target_agent_id: str) -> Dict[int, GistState]:
         """
-        Surgical memory ablation: Fuses all agents EXCEPT target_agent_id.
-        Equivalently: M_ablated = M_fused - M_target.
+        Re-fuses all agents EXCEPT target_agent_id (equivalently M_fused - M_target).
+        This removes the target's additive contribution to M/Z exactly. It is not
+        weight unlearning, and recall for remaining agents can still change.
         """
         remaining = [aid for aid in self.registry.keys() if aid != target_agent_id]
         return self.fuse(agent_ids=remaining)
@@ -304,12 +319,18 @@ class SwarmMemoryPool:
         self,
         total_tokens_read: int,
         num_layers: int = 24,
-        hidden_size: int = 896,
+        num_kv_heads: int = 2,
+        head_dim: int = 64,
         bytes_per_elem: int = 2,
     ) -> Dict[str, Any]:
         """
-        Computes communication and memory savings comparing Gist state transfer
-        vs traditional LLM multi-agent KV-cache / conversation transcripts.
+        Byte-size comparison of the registered Gist states vs. the KV cache a
+        GQA transformer would hold for the same number of tokens.
+        Defaults match Qwen2.5-0.5B (24 layers, 2 KV heads, head_dim 64).
+
+        Caveat: this compares storage size only. It says nothing about how much
+        information each representation preserves — a KV cache is lossless,
+        a fixed-size Gist state is not.
         """
         # 1. Total Gist state transferred across registered agents
         total_gist_bytes = sum(
@@ -317,9 +338,8 @@ class SwarmMemoryPool:
         )
         total_gist_kb = total_gist_bytes / 1024.0
 
-        # 2. Traditional multi-agent: coordinator must retain full KV cache of all messages
-        # KV cache size = 2 (keys + values) * layers * hidden_size * num_tokens * dtype_bytes
-        traditional_kv_bytes = 2 * num_layers * hidden_size * total_tokens_read * bytes_per_elem
+        # 2. KV cache size = 2 (K+V) * layers * kv_heads * head_dim * tokens * bytes
+        traditional_kv_bytes = 2 * num_layers * num_kv_heads * head_dim * total_tokens_read * bytes_per_elem
         traditional_kv_mb = traditional_kv_bytes / (1024.0 * 1024.0)
 
         # 3. Compression ratio: KV Cache vs Gist associative manifold

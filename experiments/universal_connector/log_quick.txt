@@ -1,0 +1,19 @@
+device=cuda  steps1=30 steps2=30 bs=8 n_eval=24
+
+== Phase 1: train writer + connector for qwen0.5b ==
+    step    30/30  loss 10.061  (8s)
+  [qwen0.5b] no_context=8.3%  full_text=79.2%  text_same_budget=16.7%  memory=0.0%  memory_wrong_doc=0.0%
+
+== Connector only (writer frozen): smollm135m ==
+    step    30/30  loss 8.469  (6s)
+  [smollm135m] no_context=0.0%  full_text=75.0%  text_same_budget=12.5%  memory=0.0%  memory_wrong_doc=0.0%
+
+== Control: SmolLM connector on an UNTRAINED (random) writer ==
+    step    30/30  loss 8.935  (6s)
+  [smollm135m+random_writer] no_context=0.0%  full_text=75.0%  text_same_budget=12.5%  memory=4.2%  memory_wrong_doc=4.2%
+
+== Connector only (writer frozen): qwen1.5b-instruct ==
+    step    30/30  loss 11.943  (5s)
+  [qwen1.5b-instruct] no_context=0.0%  full_text=95.8%  text_same_budget=8.3%  memory=8.3%  memory_wrong_doc=8.3%
+
+Saved /home/phil/.gemini/antigravity/scratch/gist-memory/experiments/universal_connector/results_quick.json

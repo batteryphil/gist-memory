@@ -1,15 +1,21 @@
 """
-adapter.py — Universal Hugging Face & Transformer Adapter for Gist Memory
-========================================================================
-Enables surgical injection of Gist Memory into any pretrained transformer or SSM trunk
-(Qwen2, DeepSeek-R1-Distill, LLaMA-3, Mistral, Gemma, Mamba).
+adapter.py — Hugging Face adapter for Gist Memory
+=================================================
+Wraps selected decoder layers of a pretrained model with a GistLayer whose
+output is added (through a zero-initialized, gated residual) to the layer output.
 
-Guarantees:
-1. Strict Zero-Initialization: Base model weights produce 100% bitwise/float-identical
-   outputs at step 0 before fine-tuning.
-2. Full Hugging Face compatibility: Works natively with model.generate() and Cache.
-3. Clean parameter isolation: freeze_backbone() allows lightweight parameter-efficient
-   training of only associative memory projections.
+Important — what this does NOT do:
+- It does NOT replace or shrink the model's attention / KV cache. The original
+  layer (including its attention and KV cache) still runs in full; Gist is an
+  additional recurrent memory on top. To actually save memory you would have to
+  restrict the base attention (e.g. a sliding window) and train Gist to carry
+  long-range information. No such training is included in this repository.
+
+What it does provide:
+1. Zero-initialized output projection, so the wrapped model's outputs match the
+   base model at step 0 (check with ``GistModelAdapter.verify_zero_init``).
+2. A per-layer recurrent state carried through ``past_key_values`` / GistCache.
+3. ``freeze_backbone()`` for training only Gist parameters.
 """
 
 from __future__ import annotations
@@ -104,6 +110,7 @@ class GistWrapperLayer(nn.Module):
 
         self.current_state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None
         self.pinned_state: Optional[Union[GistState, Tuple[torch.Tensor, torch.Tensor]]] = None
+        self.bypass: bool = False  # if True, behave exactly like orig_layer
 
         if device is not None or dtype is not None:
             self.gist.to(device=device, dtype=dtype)
@@ -121,6 +128,9 @@ class GistWrapperLayer(nn.Module):
             orig_hidden = layer_outputs[0]
         else:
             orig_hidden = layer_outputs
+
+        if self.bypass:
+            return layer_outputs
 
         # 2. Extract or resolve Gist state from cache or pinned state
         prior_state = None
@@ -278,26 +288,39 @@ class GistModelAdapter:
 
     def verify_zero_init(self, dummy_input_ids: torch.Tensor) -> float:
         """
-        Verifies that Gist injection has zero perturbation on the base model at initialization.
-        Returns peak absolute deviation in output logits.
+        Measures the perturbation Gist injection causes on the base model.
+
+        Runs the model twice — once with every Gist wrapper bypassed (pure base
+        model) and once with Gist active — and returns the peak absolute
+        difference between the two logit tensors. At initialization this should
+        be 0.0; after training it measures how much Gist changes outputs.
+        Note: Gist states are cleared before and after the check.
         """
-        # Save current state
         was_training = self.model.training
         self.model.eval()
 
-        with torch.no_grad():
-            # Pass 1: compute output with Gist active (initialized to zero)
-            out_with_gist = self.model(dummy_input_ids)
-            logits_with_gist = out_with_gist.logits if hasattr(out_with_gist, "logits") else out_with_gist[0]
+        def _logits(out):
+            return out.logits if hasattr(out, "logits") else out[0]
 
-            # Pass 2: temporarily bypass Gist by setting recon_proj to 0 and checking residual
-            # Because recon_proj is strictly zeros, out_with_gist already equals base output!
-            # To strictly prove it, we can inspect Gist recon projection norms:
-            max_norm = max(w.gist.recon_proj.weight.abs().max().item() for w in self.wrapped_layers.values())
+        try:
+            with torch.no_grad():
+                for w in self.wrapped_layers.values():
+                    w.bypass = True
+                self.clear_states()
+                base_logits = _logits(self.model(dummy_input_ids, use_cache=False))
 
-        if was_training:
-            self.model.train()
-        return max_norm
+                for w in self.wrapped_layers.values():
+                    w.bypass = False
+                self.clear_states()
+                gist_logits = _logits(self.model(dummy_input_ids, use_cache=False))
+        finally:
+            for w in self.wrapped_layers.values():
+                w.bypass = False
+            self.clear_states()
+            if was_training:
+                self.model.train()
+
+        return (gist_logits.float() - base_logits.float()).abs().max().item()
 
     def get_states(self) -> Dict[int, Any]:
         """Returns the current GistState dictionary for all wrapped layers."""

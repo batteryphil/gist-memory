@@ -35,7 +35,7 @@ os.environ["HF_HUB_OFFLINE"] = "1"
 
 
 def get_local_model_path() -> str:
-    path = "/home/phil/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B/snapshots/060db6499f32faf8b98477b0a26969ef7d8b9987"
+    path = os.environ.get("GIST_MODEL", "Qwen/Qwen2.5-0.5B")
     if not os.path.exists(path):
         raise FileNotFoundError(f"Local Qwen model snapshot not found at: {path}")
     return path

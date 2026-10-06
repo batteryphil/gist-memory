@@ -90,7 +90,7 @@ def main():
     if failed > 0:
         sys.exit(1)
     else:
-        print("\nAll tests passed successfully! Gist Memory is mathematically verified.")
+        print("\nAll tests passed.")
 
 if __name__ == "__main__":
     main()

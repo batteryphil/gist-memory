@@ -1,0 +1,73 @@
+{
+  "config": {
+    "K": 64,
+    "d_map": 128,
+    "steps1": 60,
+    "steps2": 60,
+    "bs": 4,
+    "n_eval": 16,
+    "lengths": {
+      "1024": 8,
+      "2048": 16,
+      "4096": 32
+    }
+  },
+  "qwen0.5b": {
+    "1024": {
+      "doc_tokens": 988,
+      "no_context": 0.0,
+      "full_text": 0.8125,
+      "first_64_tokens": 0.0625,
+      "rag_64_tokens": 0.75,
+      "memory": 0.0625,
+      "memory_wrong_doc": 0.0625
+    },
+    "2048": {
+      "doc_tokens": 1974,
+      "no_context": 0.125,
+      "full_text": 0.875,
+      "first_64_tokens": 0.0625,
+      "rag_64_tokens": 0.5625,
+      "memory": 0.0625,
+      "memory_wrong_doc": 0.0625
+    },
+    "4096": {
+      "doc_tokens": 3948,
+      "no_context": 0.0,
+      "full_text": 0.5625,
+      "first_64_tokens": 0.0625,
+      "rag_64_tokens": 0.4375,
+      "memory": 0.125,
+      "memory_wrong_doc": 0.0625
+    }
+  },
+  "smollm135m": {
+    "1024": {
+      "doc_tokens": 994,
+      "no_context": 0.0625,
+      "full_text": 0.75,
+      "first_64_tokens": 0.125,
+      "rag_64_tokens": 0.5,
+      "memory": 0.0,
+      "memory_wrong_doc": 0.0
+    },
+    "2048": {
+      "doc_tokens": 1982,
+      "no_context": 0.0625,
+      "full_text": 0.25,
+      "first_64_tokens": 0.125,
+      "rag_64_tokens": 0.4375,
+      "memory": 0.0,
+      "memory_wrong_doc": 0.0
+    },
+    "4096": {
+      "doc_tokens": 3968,
+      "no_context": 0.0625,
+      "full_text": null,
+      "first_64_tokens": 0.0625,
+      "rag_64_tokens": 0.3125,
+      "memory": 0.0,
+      "memory_wrong_doc": 0.0
+    }
+  }
+}

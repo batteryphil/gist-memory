@@ -1,201 +1,149 @@
 {
   "metadata": {
-    "timestamp": "2026-10-05 18:40:23",
+    "timestamp": "2026-10-05 18:51:32",
     "pytorch_version": "2.14.0+rocm7.2",
     "cuda_available": true,
-    "device_name": "AMD Radeon Graphics"
+    "device_name": "AMD Radeon Graphics",
+    "note": "Gist layers are UNTRAINED. Sizes/timings only; no quality metrics."
   },
-  "experiment_1_horizon_scaling": [
+  "experiment_1_state_size": [
     {
       "seq_len": 1024,
-      "kv_cache_mb": 84.0,
-      "gist_state_kb": 2691.0,
-      "vram_compression_ratio": 31.964325529542922,
-      "prefill_time_sec": 0.6122264671139419,
-      "throughput_tokens_per_sec": 1672.5836843140312,
-      "peak_vram_allocated_mb": 118.99658203125
+      "qwen_kv_cache_mb": 12.0,
+      "gist_state_kb_24_layers": 2691.0,
+      "size_ratio": 4.5663322185061315,
+      "prefill_time_sec_single_layer": 0.013999470975250006,
+      "throughput_tokens_per_sec_single_layer": 73145.62113170946,
+      "peak_vram_mb": 118.99658203125
     },
     {
       "seq_len": 4096,
-      "kv_cache_mb": 336.0,
-      "gist_state_kb": 2691.0,
-      "vram_compression_ratio": 127.85730211817169,
-      "prefill_time_sec": 0.0489156199619174,
-      "throughput_tokens_per_sec": 83736.03366754598,
-      "peak_vram_allocated_mb": 216.99267578125
+      "qwen_kv_cache_mb": 48.0,
+      "gist_state_kb_24_layers": 2691.0,
+      "size_ratio": 18.265328874024526,
+      "prefill_time_sec_single_layer": 0.052345506846904755,
+      "throughput_tokens_per_sec_single_layer": 78249.31396651862,
+      "peak_vram_mb": 216.99267578125
     },
     {
       "seq_len": 16384,
-      "kv_cache_mb": 1344.0,
-      "gist_state_kb": 2691.0,
-      "vram_compression_ratio": 511.42920847268675,
-      "prefill_time_sec": 0.20345865283161402,
-      "throughput_tokens_per_sec": 80527.41808705324,
-      "peak_vram_allocated_mb": 611.03955078125
+      "qwen_kv_cache_mb": 192.0,
+      "gist_state_kb_24_layers": 2691.0,
+      "size_ratio": 73.0613154960981,
+      "prefill_time_sec_single_layer": 0.20542433438822627,
+      "throughput_tokens_per_sec_single_layer": 79756.86059197003,
+      "peak_vram_mb": 611.03955078125
     },
     {
       "seq_len": 32768,
-      "kv_cache_mb": 2688.0,
-      "gist_state_kb": 2691.0,
-      "vram_compression_ratio": 1022.8584169453735,
-      "prefill_time_sec": 0.40151660796254873,
-      "throughput_tokens_per_sec": 81610.5718921007,
-      "peak_vram_allocated_mb": 1134.53955078125
+      "qwen_kv_cache_mb": 384.0,
+      "gist_state_kb_24_layers": 2691.0,
+      "size_ratio": 146.1226309921962,
+      "prefill_time_sec_single_layer": 0.4041070179082453,
+      "throughput_tokens_per_sec_single_layer": 81087.4311701267,
+      "peak_vram_mb": 1134.53955078125
     },
     {
-      "seq_len": 64000,
-      "kv_cache_mb": 5250.0,
-      "gist_state_kb": 2691.0,
-      "vram_compression_ratio": 1997.7703455964327,
-      "prefill_time_sec": 0.779927231837064,
-      "throughput_tokens_per_sec": 82058.93753607305,
-      "peak_vram_allocated_mb": 2134.76025390625
+      "seq_len": 65536,
+      "qwen_kv_cache_mb": 768.0,
+      "gist_state_kb_24_layers": 2691.0,
+      "size_ratio": 292.2452619843924,
+      "prefill_time_sec_single_layer": 0.8228241102769971,
+      "throughput_tokens_per_sec_single_layer": 79647.64180030873,
+      "peak_vram_mb": 2183.16455078125
     },
     {
-      "seq_len": 128000,
-      "kv_cache_mb": 10500.0,
-      "gist_state_kb": 2691.0,
-      "vram_compression_ratio": 3995.5406911928653,
-      "prefill_time_sec": 1.472381855826825,
-      "throughput_tokens_per_sec": 86933.96994363316,
-      "peak_vram_allocated_mb": 4189.85595703125
+      "seq_len": 131072,
+      "qwen_kv_cache_mb": 1536.0,
+      "gist_state_kb_24_layers": 2691.0,
+      "size_ratio": 584.4905239687848,
+      "prefill_time_sec_single_layer": 1.5030458187684417,
+      "throughput_tokens_per_sec_single_layer": 87204.26108326967,
+      "peak_vram_mb": 4280.41455078125
     }
   ],
-  "experiment_2_decode_flatness": [
+  "experiment_2_decode_latency": [
     {
-      "horizon_tokens": 100,
-      "state_size_kb": 112.125,
-      "latency_us": 788.8118457049131,
-      "drift_pct": 0.0
+      "context": 1000,
+      "gist_decode_us": 799.0449108183384,
+      "sdpa_decode_us": 182.47785978019238
     },
     {
-      "horizon_tokens": 1000,
-      "state_size_kb": 112.125,
-      "latency_us": 791.8035658076406,
-      "drift_pct": 0.3792691652663881
+      "context": 4000,
+      "gist_decode_us": 779.0763396769762,
+      "sdpa_decode_us": 561.884343624115
     },
     {
-      "horizon_tokens": 5000,
-      "state_size_kb": 112.125,
-      "latency_us": 800.8864801377058,
-      "drift_pct": 1.5307369556554133
+      "context": 16000,
+      "gist_decode_us": 785.8706871047616,
+      "sdpa_decode_us": 2065.845802426338
     },
     {
-      "horizon_tokens": 10000,
-      "state_size_kb": 112.125,
-      "latency_us": 798.1976494193077,
-      "drift_pct": 1.1898659693690385
-    },
-    {
-      "horizon_tokens": 20000,
-      "state_size_kb": 112.125,
-      "latency_us": 804.2808389291167,
-      "drift_pct": 1.961049812884071
-    },
-    {
-      "horizon_tokens": 50000,
-      "state_size_kb": 112.125,
-      "latency_us": 804.0803531184793,
-      "drift_pct": 1.9356336364246125
+      "context": 64000,
+      "gist_decode_us": 804.5236580073833,
+      "sdpa_decode_us": 7318.979511037469
     }
   ],
-  "experiment_3_llm_token_economics": {
-    "corpus_tokens": 10000,
-    "facts_tested": 10,
-    "accuracy_pct": 90.0,
-    "standard_cloud_tokens": 200000,
-    "standard_cloud_cost_usd": 0.6000000000000001,
-    "gist_hybrid_tokens": 1280,
-    "gist_hybrid_cost_usd": 0.0038400000000000005,
-    "cost_savings_pct": 99.36
+  "experiment_4_capacity": [
+    {
+      "pairs": 4,
+      "top1_retrieval": 0.5,
+      "mean_target_cos": 0.5555292367935181,
+      "effective_rank": 3.723304846003409
+    },
+    {
+      "pairs": 8,
+      "top1_retrieval": 0.0,
+      "mean_target_cos": 0.31769469380378723,
+      "effective_rank": 7.248353956588253
+    },
+    {
+      "pairs": 16,
+      "top1_retrieval": 0.125,
+      "mean_target_cos": 0.26073533296585083,
+      "effective_rank": 13.464991921452624
+    },
+    {
+      "pairs": 32,
+      "top1_retrieval": 0.0,
+      "mean_target_cos": 0.15823809802532196,
+      "effective_rank": 22.741127554331463
+    },
+    {
+      "pairs": 64,
+      "top1_retrieval": 0.015625,
+      "mean_target_cos": 0.12227386236190796,
+      "effective_rank": 26.45493815655551
+    },
+    {
+      "pairs": 128,
+      "top1_retrieval": 0.0,
+      "mean_target_cos": 0.07570433616638184,
+      "effective_rank": 28.47063309835195
+    },
+    {
+      "pairs": 256,
+      "top1_retrieval": 0.0,
+      "mean_target_cos": 0.06453864276409149,
+      "effective_rank": 28.111594797041924
+    }
+  ],
+  "experiment_3_handwired_lookup_toy": {
+    "facts": 10,
+    "top1_acc_pct": 90.0
   },
-  "experiment_4_manifold_saturation": [
-    {
-      "num_facts": 5,
-      "d_map": 32,
-      "effective_rank": 4.586871162756797,
-      "condition_number": 50506960.0,
-      "avg_cosine_sim": 0.46788314580917356,
-      "min_cosine_sim": 0.39252299070358276
+  "experiment_5_state_algebra_toy": {
+    "summed": {
+      "A": 3,
+      "B": 3,
+      "C": 3,
+      "D": 3
     },
-    {
-      "num_facts": 10,
-      "d_map": 32,
-      "effective_rank": 8.86701734194624,
-      "condition_number": 38946900.0,
-      "avg_cosine_sim": 0.33594748228788374,
-      "min_cosine_sim": 0.13300959765911102
-    },
-    {
-      "num_facts": 20,
-      "d_map": 32,
-      "effective_rank": 16.424290511615233,
-      "condition_number": 34166168.0,
-      "avg_cosine_sim": 0.2617124617099762,
-      "min_cosine_sim": 0.08456632494926453
-    },
-    {
-      "num_facts": 32,
-      "d_map": 32,
-      "effective_rank": 22.903789030490515,
-      "condition_number": 88.63510131835938,
-      "avg_cosine_sim": 0.2521195464069024,
-      "min_cosine_sim": 0.035092201083898544
-    },
-    {
-      "num_facts": 48,
-      "d_map": 32,
-      "effective_rank": 25.86036621009775,
-      "condition_number": 22.507247924804688,
-      "avg_cosine_sim": 0.17187298670372306,
-      "min_cosine_sim": -0.005517190787941217
-    },
-    {
-      "num_facts": 64,
-      "d_map": 32,
-      "effective_rank": 25.788409236056626,
-      "condition_number": 23.282907485961914,
-      "avg_cosine_sim": 0.16726679890416563,
-      "min_cosine_sim": -0.1010301262140274
-    },
-    {
-      "num_facts": 96,
-      "d_map": 32,
-      "effective_rank": 26.70021942259796,
-      "condition_number": 12.01049518585205,
-      "avg_cosine_sim": 0.12741537729743868,
-      "min_cosine_sim": -0.11230365931987762
-    },
-    {
-      "num_facts": 128,
-      "d_map": 32,
-      "effective_rank": 27.998947219688933,
-      "condition_number": 10.759339332580566,
-      "avg_cosine_sim": 0.10685791888317908,
-      "min_cosine_sim": -0.15084882080554962
-    },
-    {
-      "num_facts": 256,
-      "d_map": 32,
-      "effective_rank": 28.163666422384566,
-      "condition_number": 8.508234024047852,
-      "avg_cosine_sim": 0.07974098323393264,
-      "min_cosine_sim": -0.1667385697364807
-    },
-    {
-      "num_facts": 512,
-      "d_map": 32,
-      "effective_rank": 28.177018492181283,
-      "condition_number": 8.336868286132812,
-      "avg_cosine_sim": 0.06022962142924371,
-      "min_cosine_sim": -0.21223780512809753
+    "after_removing_C": {
+      "A": 3,
+      "B": 3,
+      "C": 0,
+      "D": 3
     }
-  ],
-  "experiment_5_scaled_swarm": {
-    "num_agents": 4,
-    "total_facts": 12,
-    "collective_recall_acc": 100.0,
-    "threat_recall_post_ablation": 0.0,
-    "infra_recall_post_ablation": 1.0
   }
 }
